@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Encryptor CLI
+GenericName=Encryptor GUI
+Comment=Basic implementations of file and string encryptor based on libakrypt.
+Exec=/usr/bin/ak-file-encryptor
+Icon=/usr/share/icons/hicolor/64x64/apps/ak-file-encryptor.png
+Categories=Utility
+
