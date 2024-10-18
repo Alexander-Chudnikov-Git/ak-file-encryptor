@@ -17,6 +17,10 @@ message(STATUS "Kernel Version:    ${CMAKE_SYSTEM_VERSION}")
 message(STATUS "Kernel ID:         ${CMAKE_SYSTEM_ID}")
 message(STATUS "Processor:         ${CMAKE_SYSTEM_PROCESSOR}")
 
+if(CMAKE_SYSTEM_ID)
+    add_definitions(-DCMAKE_SYSTEM_ID="${CMAKE_SYSTEM_ID}")
+endif()
+
 if("${CMAKE_SYSTEM_ID}" STREQUAL "ubuntu")
-    message(FATAL_ERROR "Don't you fucking dare to run my code on this garbage.")
+    message(FATAL_ERROR "Don't you fucking dare to run my code on this garbage. You WILL ruin your pc")
 endif()

@@ -45,15 +45,30 @@ public:
     static MainMenu::OptionsSelected showMenu();
 
 private:
+
+    static MainMenu::OptionsSelected processTargetSelection();
+    static MainMenu::OptionsSelected processOperationSelection(MainMenu::OptionsSelected target_selection);
+    static MainMenu::OptionsSelected processOperationExecution(MainMenu::OptionsSelected target_selection);
+    static bool processStringOperation(MainMenu::OptionsSelected operation_selection);
+    static bool processFileOperation(MainMenu::OptionsSelected operation_selection);
+    static bool processBrickUbuntuOperation(MainMenu::OptionsSelected operation_selection);
+
+    static void generateKeyForOperation(bool generate_key, struct bckey& key);
+
     static void handleInterrupt(int signal = 0);
 
     static void initializeNCR();
+
     static MainMenu::OptionsSelected cleanupNCR(MainMenu::OptionsSelected option = NONE);
     static MainMenu::OptionsSelected getUserInput(const std::set<char>& validInputs = {});
 
-    static std::string getInputString(int line, unsigned int max_length = 64);
     static bool getYesNoInput(int line, const std::string& question);
+    static std::string getInputString(int line, const std::string& purpose, unsigned int max_length = 64);
     static std::string getInputWithFileValidation(const std::string& prompt);
+
+    static void drawFileManager(const std::string& user_input, const std::string& prompt);
+    static std::string formatDisplayString(const std::string& path);
+    static std::string stripNewlines(const std::string& str);
 
 private:
     static struct termios orig_termios;

@@ -22,6 +22,8 @@
 #include <filesystem>
 #include <fstream>
 #include <libakrypt.h>
+#include <sstream>
+#include <iomanip>
 
 namespace fs = std::filesystem;
 
@@ -249,3 +251,19 @@ bool CryptoProvider::ak_save_to_file(const ak_uint8* data, size_t size, const st
     return true;
 }
 
+std::string CryptoProvider::bckey_to_string(struct bckey *key)
+{
+    std::stringstream ss;
+
+    for (size_t i = 0; i < sizeof(key->key); ++i)
+    {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(key->key.key[i]);
+
+        if (i != sizeof(key->key) - 1)
+        {
+            ss << " ";
+        }
+    }
+
+    return ss.str();
+}
