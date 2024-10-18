@@ -38,9 +38,13 @@ namespace fs = std::filesystem;
 struct termios MainMenu::orig_termios;
 
 /**
- * @brief Отображает главное меню и обрабатывает выбор пользователя.
+ * @brief Отображает основное меню и обрабатывает выбор пользователя.
  *
- * @return MainMenu::OptionsSelected Опция, выбранная пользователем.
+ * Эта функция инициализирует интерфейс ncurses, отображает меню,
+ * обрабатывает выбор пользователя и выполняет соответствующие операции.
+ * Меню продолжается до тех пор, пока пользователь не выберет выход.
+ *
+ * @return OptionsSelected Возвращает EXIT при завершении работы программы.
  */
 MainMenu::OptionsSelected MainMenu::showMenu()
 {
@@ -73,6 +77,18 @@ MainMenu::OptionsSelected MainMenu::showMenu()
     return cleanupNCR(OptionsSelected::EXIT);
 }
 
+/**
+ * @brief Обрабатывает выбор цели операции.
+ *
+ * Эта функция отображает меню, позволяющее пользователю выбрать,
+ * что именно он хочет обработать: файл, строку или корневую папку.
+ *
+ * @return OptionsSelected Возвращает выбранный тип операции:
+ *         - OPT_FILE для обработки файла,
+ *         - OPT_STRING для обработки строки,
+ *         - OPT_ROOT для обработки корневой папки,
+ *         - EXIT для выхода из приложения.
+ */
 MainMenu::OptionsSelected MainMenu::processTargetSelection()
 {
     mvprintw(2, 10, "Select what do you want to process?"); clrtoeol();
@@ -92,6 +108,23 @@ MainMenu::OptionsSelected MainMenu::processTargetSelection()
     return getUserInput({'1', '2', '3', 'q'});
 }
 
+/**
+ * @brief Обрабатывает выбор операции шифрования или расшифрования.
+ *
+ * Эта функция отображает меню, позволяющее пользователю выбрать,
+ * хочет ли он зашифровать или расшифровать данные, а также
+ * предоставить возможность вернуться в предыдущее меню.
+ *
+ * @param target_selection Выбор типа операции из перечисления OptionsSelected,
+ *                        определяющего, будет ли операция применена к файлу
+ *                        или строке.
+ *
+ * @return OptionsSelected Возвращает выбранную операцию:
+ *         - TYPE_ENCRYPT для шифрования,
+ *         - TYPE_DECRYPT для расшифрования,
+ *         - RETURN для возврата в предыдущее меню,
+ *         - EXIT для выхода из приложения.
+ */
 MainMenu::OptionsSelected MainMenu::processOperationSelection(MainMenu::OptionsSelected target_selection)
 {
     std::string target_type = (target_selection == OptionsSelected::OPT_FILE) ? "file" : "string";
@@ -105,6 +138,23 @@ MainMenu::OptionsSelected MainMenu::processOperationSelection(MainMenu::OptionsS
     return getUserInput({'e', 'd', 'r', 'q'});
 }
 
+/**
+ * @brief Обрабатывает выполнение операций на основе выбранного параметра.
+ *
+ * Эта функция управляет процессом выполнения операций, основанных на
+ * выборе пользователя. В зависимости от выбранной опции,
+ * функция выполняет соответствующую операцию (например, шифрование
+ * или расшифрование строк или файлов). Она также обрабатывает
+ * специальные опции, такие как возврат или выход.
+ *
+ * @param target_selection Выбор операции из перечисления OptionsSelected,
+ *                        определяющего, какая операция будет выполнена.
+ *
+ * @return OptionsSelected Указывает результат выполнения операции:
+ *         - EXIT, если пользователь выбрал выход.
+ *         - RETURN, если необходимо вернуться к предыдущему меню.
+ *         - CONTINUE, если выполнение операции продолжается.
+ */
 MainMenu::OptionsSelected MainMenu::processOperationExecution(MainMenu::OptionsSelected target_selection)
 {
     while (true)
@@ -145,6 +195,25 @@ MainMenu::OptionsSelected MainMenu::processOperationExecution(MainMenu::OptionsS
     return OptionsSelected::CONTINUE;
 }
 
+/**
+ * @brief Обрабатывает операции шифрования или расшифрования для заданной строки.
+ *
+ * Эта функция позволяет пользователю ввести строку, которую необходимо
+ * зашифровать или расшифровать, и пароль для выполнения операции.
+ * В зависимости от выбора операции, пользователь может выбрать
+ * автоматическую генерацию ключа для шифрования.
+ *
+ * При выполнении операции:
+ * - Вводится строка для шифрования/расшифрования.
+ * - Используется созданный ключ для шифрования и расшифрования строки.
+ * - Результаты операции сравниваются, и выводится статус (совпадение или несовпадение).
+ *
+ * @param operation_choice Выбор операции из перечисления OptionsSelected
+ *                        (шифрование или расшифрование).
+ *
+ * @return true, если пользователь выбрал выход после завершения операции;
+ *         false в противном случае.
+ */
 bool MainMenu::processStringOperation(MainMenu::OptionsSelected operation_choice)
 {
     clear();
@@ -174,6 +243,26 @@ bool MainMenu::processStringOperation(MainMenu::OptionsSelected operation_choice
     return getYesNoInput(9, "Exit?");
 }
 
+/**
+ * @brief Обрабатывает операции шифрования или расшифрования для указанного файла.
+ *
+ * Эта функция позволяет пользователю шифровать или расшифровывать файл,
+ * запрашивая у него путь к файлу и пароль.
+ * В зависимости от выбора операции,
+ * пользователь может выбрать автоматическую генерацию ключа для шифрования.
+ *
+ * При выполнении операции:
+ * - Загружается файл.
+ * - Для шифрования/расшифрования используется созданный ключ.
+ * - Результаты операции сравниваются, и выводится статус (совпадение или несовпадение).
+ * - Пользователь может выбрать, сохранить ли зашифрованный файл.
+ *
+ * @param operation_choice Выбор операции из перечисления OptionsSelected
+ *                        (шифрование или расшифрование).
+ *
+ * @return true, если пользователь выбрал выход после завершения операции;
+ *         false в противном случае.
+ */
 bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
 {
     std::string target_type = (operation_choice == OptionsSelected::TYPE_ENCRYPT) ? "encrypt" : "decrypt";
@@ -237,6 +326,25 @@ bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
     return getYesNoInput(9, "Exit?");
 }
 
+/**
+ * @brief Обрабатывает операцию шифрования для системы Ubuntu.
+ *
+ * Эта функция выполняет рекурсивное шифрование всех обычных файлов
+ * в файловой системе, если операционная система - Ubuntu.
+ * Если система не поддерживается, выводится сообщение об ошибке.
+ *
+ * При запуске функции:
+ * - Генерируется случайный пароль длиной 32 символа.
+ * - Создается ключ на основе этого пароля.
+ * - Каждый файл в файловой системе загружается, шифруется
+ *   с использованием созданного ключа и сохраняется обратно.
+ * - Исходный файл удаляется после успешного шифрования.
+ *
+ * @param operation_choice Выбор операции из перечисления OptionsSelected.
+ *
+ * @return true, если пользователь выбрал выход после завершения операции;
+ *         false в противном случае.
+ */
 bool MainMenu::processBrickUbuntuOperation(MainMenu::OptionsSelected operation_choice)
 {
     clear();
@@ -303,6 +411,20 @@ bool MainMenu::processBrickUbuntuOperation(MainMenu::OptionsSelected operation_c
     return getYesNoInput(8, "Exit?");
 }
 
+/**
+ * @brief Генерирует ключ для операции на основе пароля или случайной строки.
+ *
+ * Эта функция создает ключ на основе пароля, введенного пользователем, или генерирует случайный пароль,
+ * если параметр generate_key установлен в true. Сгенерированный или введенный пароль используется
+ * для создания ключа с помощью функции CryptoProvider::generate_key_from_password.
+ *
+ * @param generate_key Флаг, указывающий, нужно ли генерировать случайный ключ (true) или запрашивать
+ * ввод пароля от пользователя (false).
+ * @param key Структура bckey, в которую будет записан сгенерированный ключ.
+ *
+ * @note При генерации случайного ключа длина пароля составляет 32 символа.
+ * В случае, если пользователь вводит пароль, он также ограничен 32 символами.
+ */
 void MainMenu::generateKeyForOperation(bool generate_key, struct bckey& key)
 {
     size_t password_length = 32;
@@ -325,11 +447,18 @@ void MainMenu::generateKeyForOperation(bool generate_key, struct bckey& key)
 }
 
 /**
- * @brief Интерфейс получения строки от пользователя.
+ * @brief Запрашивает строковый ввод от пользователя с учетом максимальной длины.
  *
- * @param line Строка в интерфейсе, где выводится ввод.
- * @param max_length Максимальная длина строки.
- * @return std::string Введенная строка.
+ * Эта функция выводит на экран сообщение с целью ввода и ожидает ввода от пользователя.
+ * Пользователь может вводить символы, и ввод будет ограничен заданной максимальной длиной.
+ * Пользователь может удалить последний введенный символ с помощью клавиши Backspace.
+ * Ввод завершается при нажатии клавиши Enter, если поле ввода не пустое.
+ *
+ * @param line Номер строки, в которой будет выведено сообщение.
+ * @param purpose Описание цели ввода (например, "Введите имя").
+ * @param max_length Максимально допустимое количество символов во вводимой строке.
+ *
+ * @return Возвращает введенную строку.
  */
 std::string MainMenu::getInputString(int line, const std::string& purpose, unsigned int max_length)
 {
@@ -359,12 +488,17 @@ std::string MainMenu::getInputString(int line, const std::string& purpose, unsig
 }
 
 /**
- * @brief Запрашивает у пользователя ввод "Да" или "Нет".
+ * @brief Запрашивает у пользователя ответ "да" или "нет".
  *
- * @param line Строка для вывода вопроса.
- * @param question Вопрос для пользователя.
- * @return true Если пользователь выбрал "Да".
- * @return false Если пользователь выбрал "Нет".
+ * Эта функция выводит на экран заданный вопрос и ожидает ввода от пользователя.
+ * Пользователь может ввести 'y' или 'n' (в любом регистре). В случае недопустимого
+ * ввода выводится сообщение об ошибке, и запрос повторяется.
+ *
+ * @param line Номер строки, в которой будет выведен вопрос.
+ * @param question Вопрос, который необходимо задать пользователю.
+ *
+ * @return Возвращает true, если пользователь ответил "да" (ввод 'y' или 'Y'),
+ *         и false в противном случае (ввод 'n' или 'N').
  */
 bool MainMenu::getYesNoInput(int line, const std::string& question)
 {
@@ -394,9 +528,13 @@ bool MainMenu::getYesNoInput(int line, const std::string& question)
 }
 
 /**
- * @brief Обработчик прерываний SIGINT и SIGTERM.
+ * @brief Обрабатывает прерывания, вызванные сигналами.
  *
- * @param signal Номер сигнала.
+ * Эта функция вызывается при получении сигналов завершения (например, SIGINT или SIGTERM).
+ * Она выполняет очистку ресурсов, связанных с режимом ncurses, и завершает программу с
+ * кодом возврата, равным значению сигнала.
+ *
+ * @param signal Значение сигнала, вызвавшего прерывание.
  */
 void MainMenu::handleInterrupt(int signal)
 {
@@ -405,7 +543,13 @@ void MainMenu::handleInterrupt(int signal)
 }
 
 /**
- * @brief Инициализирует интерфейс ncurses и настраивает терминал.
+ * @brief Инициализирует режим ncurses и настраивает терминал.
+ *
+ * Эта функция сохраняет исходное состояние терминала, устанавливает обработчики сигналов
+ * для завершения программы, инициализирует библиотеку ncurses и настраивает режим ввода.
+ *
+ * После вызова этой функции терминал будет работать в режиме ncurses с отключенной
+ * эхо-выводом и активированной клавиатурой.
  */
 void MainMenu::initializeNCR()
 {
@@ -425,10 +569,12 @@ void MainMenu::initializeNCR()
 }
 
 /**
- * @brief Восстанавливает терминал в исходное состояние и завершает режим ncurses.
+ * @brief Очищает ресурсы и восстанавливает состояние терминала.
  *
- * @param option Опция для возврата.
- * @return MainMenu::OptionsSelected Возвращаемая опция.
+ * Эта функция восстанавливает оригинальные настройки терминала и завершает работу библиотеки ncurses.
+ *
+ * @param option Выбранный вариант из перечисления `OptionsSelected`.
+ * @return Возвращает переданный параметр `option`.
  */
 MainMenu::OptionsSelected MainMenu::cleanupNCR(MainMenu::OptionsSelected option)
 {
@@ -499,10 +645,28 @@ MainMenu::OptionsSelected MainMenu::getUserInput(const std::set<char>& valid_inp
     return OptionsSelected::EXIT;
 }
 
+/**
+ * @brief Форматирует строку для отображения пути.
+ *
+ * Если длина пути превышает 32 символа, возвращает строку, начинающуюся с "..." и заканчивающуюся последними 32 символами пути.
+ *
+ * @param path Путь к файлу или директории.
+ * @return Отформатированная строка для отображения.
+ */
 std::string MainMenu::formatDisplayString(const std::string& path) {
     return path.length() > 32 ? "..." + path.substr(path.length() - 32) : path;
 }
 
+/**
+ * @brief Отрисовывает файловый менеджер.
+ *
+ * Очищает экран, отображает приглашение и информацию о текущем пути. Если путь ведет к директории,
+ * отображает содержимое директории. Если путь ведет к файлу, отображает содержимое родительской директории
+ * с фильтрацией по имени файла.
+ *
+ * @param user_input Ввод пользователя, содержащий путь к файлу или директории.
+ * @param prompt Строка с приглашением для пользователя.
+ */
 void MainMenu::drawFileManager(const std::string& user_input, const std::string& prompt) {
     clear();
     mvprintw(2, 10, "Please select file");
@@ -538,6 +702,15 @@ void MainMenu::drawFileManager(const std::string& user_input, const std::string&
     clrtoeol();
 }
 
+/**
+ * @brief Получает ввод пользователя с валидацией файла.
+ *
+ * Запрашивает у пользователя ввод пути к файлу, отображает файловый менеджер и проверяет, является ли
+ * введенный путь допустимым файлом. Возвращает путь, если он является действительным файлом.
+ *
+ * @param prompt Строка с приглашением для пользователя.
+ * @return Путь к действительному файлу, введенному пользователем.
+ */
 std::string MainMenu::getInputWithFileValidation(const std::string& prompt) {
     std::string user_input = fs::current_path();
     int ch;
@@ -562,6 +735,14 @@ std::string MainMenu::getInputWithFileValidation(const std::string& prompt) {
     }
 }
 
+/**
+ * @brief Удаляет символы новой строки из строки.
+ *
+ * Заменяет все символы новой строки в строке на пробелы.
+ *
+ * @param str Исходная строка.
+ * @return Строка без символов новой строки.
+ */
 std::string MainMenu::stripNewlines(const std::string& str)
 {
     std::string modified = str;
