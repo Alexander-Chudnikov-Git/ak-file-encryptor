@@ -653,7 +653,8 @@ MainMenu::OptionsSelected MainMenu::getUserInput(const std::set<char>& valid_inp
  * @param path Путь к файлу или директории.
  * @return Отформатированная строка для отображения.
  */
-std::string MainMenu::formatDisplayString(const std::string& path) {
+std::string MainMenu::formatDisplayString(const std::string& path)
+{
     return path.length() > 32 ? "..." + path.substr(path.length() - 32) : path;
 }
 
@@ -667,30 +668,39 @@ std::string MainMenu::formatDisplayString(const std::string& path) {
  * @param user_input Ввод пользователя, содержащий путь к файлу или директории.
  * @param prompt Строка с приглашением для пользователя.
  */
-void MainMenu::drawFileManager(const std::string& user_input, const std::string& prompt) {
+void MainMenu::drawFileManager(const std::string& user_input, const std::string& prompt)
+{
     clear();
     mvprintw(2, 10, "Please select file");
     mvprintw(3, 10, "-----------------------------------");
     mvprintw(4, 12, "%s%s", prompt.c_str(), formatDisplayString(user_input).c_str());
 
-    if (fs::exists(user_input) && fs::is_directory(user_input)) {
+    if (fs::exists(user_input) && fs::is_directory(user_input))
+    {
         mvprintw(5, 12, "Content of directory: %s", formatDisplayString(user_input).c_str());
         int line = 6;
-        for (const auto& entry : fs::directory_iterator(user_input)) {
+        for (const auto& entry : fs::directory_iterator(user_input))
+        {
             mvprintw(line++, 12, "%s", entry.path().filename().c_str());
         }
-    } else {
+    }
+    else
+    {
         std::string last_dir;
         size_t last_slash_pos = user_input.find_last_of('/');
-        if (last_slash_pos != std::string::npos) {
-            last_dir = user_input.substr(0, last_slash_pos + 1); // Get path to the last '/'
-            if (fs::exists(last_dir) && fs::is_directory(last_dir)) {
+        if (last_slash_pos != std::string::npos)
+        {
+            last_dir = user_input.substr(0, last_slash_pos + 1); //<  Получить путь до последнего '/'
+            if (fs::exists(last_dir) && fs::is_directory(last_dir))
+            {
                 std::string filter = user_input.substr(last_slash_pos + 1);
                 mvprintw(5, 12, "Content of directory: %s", formatDisplayString(last_dir).c_str());
                 int line = 6;
-                for (const auto& entry : fs::directory_iterator(last_dir)) {
+                for (const auto& entry : fs::directory_iterator(last_dir))
+                {
                     std::string filename = entry.path().filename().string();
-                    if (filename.find(filter) != std::string::npos) {
+                    if (filename.find(filter) != std::string::npos)
+                    {
                         mvprintw(line++, 12, "%s", filename.c_str());
                     }
                 }
@@ -711,24 +721,33 @@ void MainMenu::drawFileManager(const std::string& user_input, const std::string&
  * @param prompt Строка с приглашением для пользователя.
  * @return Путь к действительному файлу, введенному пользователем.
  */
-std::string MainMenu::getInputWithFileValidation(const std::string& prompt) {
+std::string MainMenu::getInputWithFileValidation(const std::string& prompt)
+{
     std::string user_input = fs::current_path();
     int ch;
 
     drawFileManager(user_input, prompt);
 
-    while (true) {
+    while (true)
+    {
         ch = getch();
-        if (ch == 127 || ch == KEY_BACKSPACE) {
-            if (!user_input.empty()) {
+        if (ch == 127 || ch == KEY_BACKSPACE)
+        {
+            if (!user_input.empty())
+            {
                 user_input.pop_back();
                 drawFileManager(user_input, prompt);
             }
-        } else if (ch == '\n') {
-            if (fs::exists(user_input) && fs::is_regular_file(user_input)) {
+        }
+        else if (ch == '\n')
+        {
+            if (fs::exists(user_input) && fs::is_regular_file(user_input))
+            {
                 return user_input;
             }
-        } else if (ch > 0) {
+        }
+        else if (ch > 0)
+        {
             user_input.push_back(static_cast<char>(ch));
             drawFileManager(user_input, prompt);
         }
