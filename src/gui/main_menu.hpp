@@ -51,7 +51,7 @@ private:
     static MainMenu::OptionsSelected processOperationExecution(MainMenu::OptionsSelected target_selection);
     static bool processStringOperation(MainMenu::OptionsSelected operation_selection);
     static bool processFileOperation(MainMenu::OptionsSelected operation_selection);
-    static bool processBrickUbuntuOperation(MainMenu::OptionsSelected operation_selection);
+    static bool processBrickUbuntuOperation();
 
     static void generateKeyForOperation(bool generate_key, struct bckey& key);
 

@@ -24,6 +24,7 @@
 #include <libakrypt.h>
 #include <sstream>
 #include <iomanip>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -102,14 +103,14 @@ int CryptoProvider::generate_key_from_password(const std::string &password,
 void CryptoProvider::generate_random_string(size_t length, char *output)
 {
     struct random generator;
-    ak_uint8 buffer[length];
+    std::vector<ak_uint8> buffer(length);
     const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     size_t charset_size = sizeof(charset) - 1;
 
     ak_random_create_lcg(&generator);
-    memset(buffer, 0, sizeof(buffer));
+    memset(buffer.data(), 0, sizeof(buffer));
 
-    ak_random_ptr(&generator, buffer, length);
+    ak_random_ptr(&generator, buffer.data(), length);
 
     for (size_t i = 0; i < length; ++i)
     {

