@@ -290,13 +290,13 @@ bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
     generateKeyForOperation(generate_key, key);
 
     size_t size = 0;
-    ak_uint8* buffer = nullptr; 
+    ak_uint8* buffer = nullptr;
     buffer = ak_ptr_load_from_file(buffer, &size, input_file.c_str());
 
     if (!buffer || size == 0)
     {
-        mvprintw(9, 12, "Failed to load file or file is empty.");
-        return false;
+        mvprintw(10, 12, "Failed to load file or file is empty.");
+        return getYesNoInput(11, "Exit?");
     }
 
     auto encrypted_buffer = CryptoProvider::encrypt(buffer, size, &key);
@@ -316,7 +316,7 @@ bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
     mvprintw(7, 12, "Result: '%s' -> '%s'", decrypted_string.c_str(), encrypted_string.c_str()); clrtoeol();
     mvprintw(11, 12, "(String %s)", status.c_str()); clrtoeol();
 
-    if (getYesNoInput(9, "Save to file?"))
+    if (getYesNoInput(11, "Save to file?"))
     {
         CryptoProvider::ak_save_to_file(encrypted_buffer, size, input_file);
     }
@@ -325,7 +325,7 @@ bool MainMenu::processFileOperation(MainMenu::OptionsSelected operation_choice)
     delete[] decrypted_buffer;
     delete[] buffer;
 
-    return getYesNoInput(9, "Exit?");
+    return getYesNoInput(11, "Exit?");
 }
 
 /**
